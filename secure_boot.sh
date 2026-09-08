@@ -17,7 +17,7 @@ is_enabled() {
         fi
 
     elif [[ "$checking" == "keys" ]]; then
-        if [[ "$status" == *"Vendor Keys:"* ]]; then
+        if [[ "$status" == *"Vendor Keys:"* ]] && [[ ! "$status" == *"none"* ]]; then
             echo 0
         else
             echo 1
@@ -110,14 +110,14 @@ else
     exit 1
 fi
 
-# Generate a BLAKE2B hash for the splash image
+echo "Generating BLAKE2B hash for the splash image..."
 hash=$(sudo b2sum /boot/${path})
 if [[ ${#hash} -ne 64 ]]; then
     echo "Error generating BLAKE2B hash for the splash image"
     exit 1
 fi
 
-# Append the hash to the image file and replace the existing line with the new path.
+echo "Adding the hash to wallpaper path in limine.conf..."
 hashPath="boot():/${path}#${hash}"
 sudo sed -i "s|wallpaper: boot():/.*|${hashPath}|" /boot/limine.conf
 if [[ $? -ne 0 ]]; then
@@ -125,7 +125,7 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi 
 
-## Enroll the config checksum and sign Limine’s EFI binary ##
+echo "Enrolling the config checksum and signing Limine’s EFI binary..."
 sudo limine-enroll-config
 sudo limine-update
 
@@ -139,10 +139,8 @@ else
     exit 1
 fi 
 
-# To use fwupd with Secure Boot enabled, sign the UEFI executable
+# Allowing for fwupd to work with Secure Boot by signing the fwupdx64.efi binary and updating the fwupd configuration.
 sudo sbctl sign -s -o /usr/lib/fwupd/efi/fwupdx64.efi.signed /usr/lib/fwupd/efi/fwupdx64.efi
-
-# And add the following to /etc/fwupd/fwupd.conf
 "\n[uefi_capsule]\nDisableShimForSecureBoot=true" >> /etc/fwupd/fwupd.conf
 
 
