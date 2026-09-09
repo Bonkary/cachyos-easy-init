@@ -15,21 +15,21 @@ is_enabled() {
         if [[ "$status" == *"$ENABLED_SETUP"* ]]; then
             echo 0
         else
-            echo 1
+            echo "Setup mode is not enabled!"
         fi
 
     elif [[ "$checking" == "secureboot" ]]; then
         if [[ "$status" == *"$ENABLED_SECUREBOOT"* ]]; then
             echo 0
         else
-            echo 1
+            echo "Secure Boot is not enabled!"
         fi
 
     elif [[ "$checking" == "keys" ]]; then
         if [[ "$status" == *"$ENABLED_KEYS"* ]]; then
             echo 0
         else
-            echo 1
+            echo "No keys registered!"
         fi
 
     else
@@ -62,7 +62,7 @@ check_keys() {
 prompt_bios() {
     product=$(sudo dmidecode -t 2 | grep "Product Name:")
     model="${product#*Product Name:}"
-    clear
+
     printf "\nEnter the BIOS to:\n"
     printf "  1. Put Secure Boot into Setup Mode\n"
     printf "  2. Set to the default keys.\n"
@@ -93,14 +93,23 @@ prompt_bios() {
     printf "\e[0m\n\n" # End colors
     read -p "Press Enter to reboot the computer directly into the BIOS..."
     printf "1" > "./progress/secure_boot.log"
-    # systemctl reboot --firmware-setup
+    systemctl reboot --firmware-setup
 }
 
-resize -s 100 10
-# Progress milestones:
-# 0: Initial state, no progress made.
-# 1: User has been prompted to enter BIOS and pressed Enter
-# 2: User has entered BIOS and set Setup Mode
+PROGRESS_FILE="./progress/secure_boot.log"
+
+# Progress Milestones
+#  0: Initial state, no progress made.
+#  1: User has been prompted to enter BIOS and pressed Enter
+#  2: User has entered BIOS and set Setup Mode
+#  3: Keys created
+#  4: Keys enrolled
+#  5: Setup Mode disabled
+#  6: Wallpaper file hashed
+#  7: Enrolled config checksum
+#  8: Secure boot enabled
+#  9: fwupd allowed
+# 10: Done
 
 if [[ ! -d "./tmp" ]]; then
     mkdir -p ./tmp
@@ -127,19 +136,25 @@ if [[ $(progress) -eq 0 ]]; then
     prompt_bios
 fi
 
-
-echo "Checking if Setup Mode is enabled..."
-status=$(is_enabled "setupmode")
-if [[ "$status" -eq 0 ]]; then
-    echo "Setup mode is enabled!"
-    exit 0
-else
-    echo "Unexpected sbctl status:"
-    echo "$status"
-    exit 1
+if [[ $(progress) -eq 1 ]]; then
+    clear
+    printf "Hi again. Password need typie.\n\n"
+    read -p "Press enter when you're ready..."
 fi
 
-exit 0
+if [[ $(progress) -ne 5 ]]; then
+    status=$(is_enabled "setupmode")
+    clear
+    echo "Checking if Setup Mode is enabled..."
+    if [[ "$status" -eq 0 ]]; then
+        echo "Setup mode is enabled!"
+        exit 0
+    else
+        clear
+        echo "$status"
+        prompt_bios
+    fi
+fi
 
 echo "Checking for keys..."
 if [[ $(sudo sbctl status) == *"Vendor Keys:"* ]] && [[ ! $(sudo sbctl status) == *"none"* ]]; then
@@ -165,6 +180,7 @@ else
     echo "Unexpected sbctl enroll-keys output:"
     echo "$enroll"
     exit 1
+fi
 
 echo "Checking for Keys status..."
 status=$(is_enabled "keys")
