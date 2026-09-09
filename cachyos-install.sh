@@ -1,7 +1,15 @@
 ## Basic Updates and yay installation ##
 sudo pacman -Syu --noconfirm
-sudo pacman -S yay --noconfirm
-yay -Syu
+
+if [[ $(pacman -Q yay) == "error: package 'yay' was not found" ]]; then
+    echo "Installing yay..."
+    sudo pacman -S yay --noconfirm
+fi
+
+yay -Syu --noconfirm
+
+# Dependencies
+yay -S xterm
 
 ./secure_boot.sh
 if [[ $? -ne 0 ]]; then

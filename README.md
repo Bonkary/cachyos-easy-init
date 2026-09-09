@@ -1,4 +1,7 @@
 # cachyos-init-install
-Just a script to install some basic things in CachyOS for my buddy
+Just a script to install and setup some basic things in CachyOS for my buddy
 
-To install:
+This script uses and will install the following 3rd party packages:
+    xterm
+
+To run:
