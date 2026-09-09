@@ -1,8 +1,26 @@
-is_enabled() {
+#! /usr/bin/bash
+
+PROGRESS_FILE="./progress/secure_boot.log"
+# Progress Milestones
+#  0: Initial state, no progress made.
+#  1: User has been prompted to enter BIOS and pressed Enter
+#  2: Keys created
+#  3: Keys enrolled
+#  4: Setup Mode disabled
+#  5: Wallpaper file hashed
+#  6: Enrolled config checksum
+#  7: Secure boot enabled
+#  8: fwupd allowed
+#  9: Done
+
+
+## Utils ##
+status() {
     local checking=$1
-    local status=$(sudo sbctl status)
+    local status=$(sudo sbctl status &>/dev/null)
     
     local ENABLED_SETUP="Setup Mode:     ✗ Enabled"
+    local DISABLED_SETUP="Setup Mode:     ✗ Disabled"
     local DISABLED_POST_SETUP="Setup Mode:     ✓ Disabled" #
 
     local ENABLED_SECUREBOOT="Secure Boot:    ✓ Enabled"
@@ -12,11 +30,14 @@ is_enabled() {
     local DISABLED_KEYS="Vendor Keys:    none"
 
     if [[ "$checking" == "setupmode" ]]; then
-        if [[ "$status" == *"$ENABLED_SETUP"* ]] || [[ "$status" == *"$DISABLED_POST_SETUP"* ]]; then
-            echo 0
+        if [[ "$status" == *"$ENABLED_SETUP"* ]]; then
+            echo "enabled"
 
         elif [[ "$status" == *"$DISABLED_POST_SETUP"* ]]; then
-            echo 1
+            echo "complete"
+
+        elif [[ "$status" == *"$DISABLED_SETUP"* ]]; then
+            echo "disabled"
 
         else
             echo "Setup mode is not enabled!"
@@ -43,28 +64,93 @@ is_enabled() {
 }
 
 progress() {
-    echo $(cat "./progress/secure_boot.log" 2>/dev/null)
+    cat "$PROGRESS_FILE"
 }
 
-check_keys() {
-    if [[ $(sudo sbctl status) == *"Vendor Keys:"* ]] && [[ ! $(sudo sbctl status) == *"none"* ]]; then
-        echo "No keys found!\nCreating keys..."
-        create=$(sudo sbctl create-keys)
-        if [["$create" == *"Secure boot keys created!"* ]]; then
-            echo "Keys created successfully!"
-        else
-            echo "Unexpected sbctl create-keys output:"
-            echo "$create"
-            exit 1
-        fi
+keys_state() {
+    local ENABLED_KEYS="Vendor Keys:    ✓ Enrolled"
+    local NONE_KEYS="Vendor Keys:    none"
+    local PENDING_KEYS="Vendor Keys:    microsoft"
+    status=$(sudo sbctl status &>/dev/null)
+    if [[ "$status" -eq *"$ENABLED_KEYS"* ]]; then
+        echo "enabled"
+    elif [[ "$status" -eq *"$NONE_KEYS"* ]]; then
+        echo "none"
+    elif [[ "$status" -eq *"$PENDING_KEYS"* ]]; then
+        echo "pending"
+    fi
+
+}
+
+check_files() {
+    if [[ ! -d "./progress" ]]; then
+        mkdir -p ./progress
+    fi
+
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        touch "./progress/secure_boot.log"
+        echo "0" > "$PROGRESS_FILE"
+    fi
+}
+
+setup_enabled() {
+    status=$(status "setupmode")
+    echo "Checking if Setup Mode is enabled..."
+    if [[ "$status" == "complete" ]] || [[ "$status" == "enabled" ]]; then
+        echo 0
     else
-        echo "Keys already exist. Please clear existing keys before proceeding."
+        echo 1
+    fi
+}
+
+
+
+## Actions ##
+install_sbctl() {
+    sbctlInstalled=$(yay -Q sbctl &>/dev/null)
+    if [[ $? -ne 0 ]]; then
+        echo "Installing sbctl..."
+        yay -S sbctl --noconfirm
+    fi
+}
+
+enroll_keys() {
+    enroll=$(sudo sbctl enroll-keys --microsoft --firmware-builtin &>/dev/null)
+    status=$(status "setupmode")
+    if [[ $status -eq 1 ]]; then
+        echo "Keys enrolled successfully!"
+    else
+        echo "$status"
         exit 1
     fi
 }
 
-prompt_bios() {
-    product=$(sudo dmidecode -t 2 | grep "Product Name:")
+create_keys() {
+    sudo rm -rf /var/lib/sbctl # Clear any previously stored keys and stuff
+    create=$(sudo sbctl create-keys)
+    if [[ "$create" == *"Secure boot keys created!"* ]]; then
+        echo "Keys created successfully!"
+        echo 2 > $PROGRESS_FILE
+    elif [[ "$create" == *"Secure boot keys have already been created!"* ]]; then
+        echo "We already made keys!"
+        echo 2 > $PROGRESS_FILE
+
+    else
+        echo "$create"
+        exit 1
+    fi
+}
+
+wallpaper_hash() {
+    echo ""
+}
+
+
+
+
+## Stages ##
+stage_0() {
+    product=$(sudo dmidecode -t 2 | grep "Product Name:"  &>/dev/null)
     model="${product#*Product Name:}"
 
     printf "\nEnter the BIOS to:\n"
@@ -96,129 +182,78 @@ prompt_bios() {
 
     printf "\e[0m\n\n" # End colors
     read -p "Press Enter to reboot the computer directly into the BIOS..."
-    printf "1" > "./progress/secure_boot.log"
-    systemctl reboot --firmware-setup
+    printf "1" > "$PROGRESS_FILE"
+    # systemctl reboot --firmware-setup
 }
 
-PROGRESS_FILE="./progress/secure_boot.log"
-
-# Progress Milestones
-#  0: Initial state, no progress made.
-#  1: User has been prompted to enter BIOS and pressed Enter
-#  2: User has entered BIOS and set Setup Mode
-#  3: Keys created
-#  4: Keys enrolled
-#  5: Setup Mode disabled
-#  6: Wallpaper file hashed
-#  7: Enrolled config checksum
-#  8: Secure boot enabled
-#  9: fwupd allowed
-# 10: Done
-
-if [[ ! -d "./progress" ]]; then
-    mkdir -p ./progress
-fi
-
-if [[ ! -f "$PROGRESS_FILE" ]]; then
-    touch "./progress/secure_boot.log"
-    echo "0" > "$PROGRESS_FILE"
-fi
-
-sbctlInstalled=$(yay -Q sbctl 2>/dev/null)
-if [[ $? -ne 0 ]]; then
-    echo "Installing sbctl..."
-    yay -S sbctl --noconfirm
-fi
-
-if [[ ! -f "$PROGRESS_FILE" ]]; then
-    echo "Creating progress file..."
-    echo "0" > "$PROGRESS_FILE"
-fi
-
-## Enter BIOS ##
-if [[ $(progress) -eq 0 ]]; then
-    prompt_bios
-fi
-
-if [[ $(progress) -eq 1 ]]; then
+stage_1() {
+    echo "stage1"
     clear
-    printf "Hi again. Password need typie.\n\n"
-    read -p "Press enter when you're ready..."
-fi
-
-if [[ $(progress) -ne 5 ]]; then
-    status=$(is_enabled "setupmode")
-    clear
-    echo "Checking if Setup Mode is enabled..."
-    if [[ "$status" -eq 0 ]]; then
-        echo "Setup mode is enabled!"
-        exit 0
-    else
-        clear
-        echo "$status"
-        prompt_bios
+    if [[ $(progress) -eq 1 ]]; then
+        printf "Hi again. Password need typie.\n\n"
+        read -r -p "Press Enter when you're ready..."
     fi
-fi
 
-# Test in VM
-echo "Checking for keys..."
-if [[ $(sudo sbctl status) == *"Vendor Keys:"* ]] && [[ ! $(sudo sbctl status) == *"none"* ]]; then
-    echo "No keys found!\nCreating keys..."
-    create=$(sudo sbctl create-keys)
-    if [["$create" == *"Secure boot keys created!"* ]]; then
-        echo "Keys created successfully!"
+    if [[ $(setup_enabled) -eq 1 ]]; then
+        stage_0
+    fi
+
+    echo "Creating keys..."
+    create_keys
+
+    echo "Enrolling keys..."
+    enroll_keys
+
+    echo "Checking if Setup Mode is complete..."
+    setup=$(status "setupmode")
+    if [[ "$setup" == "complete" ]]; then
+        echo "Setup mode is done!"
+        echo 2 > "$PROGRESS_FILE"
     else
-        echo "Unexpected sbctl create-keys output:"
-        echo "$create"
+        echo "$setup"
         exit 1
     fi
-else
-    echo "Keys already exist. Please clear existing keys before proceeding."
-    exit 1
+}
+
+stage_2() {
+    echo "stage 2"
+}
+
+
+
+
+
+
+if [[ $(progress) == 0 ]]; then
+    clear
+    check_files
+    install_sbctl
+    stage_0
 fi
 
-
-echo "Enrolling keys..."
-enroll=$(sudo sbctl enroll-keys --microsoft --firmware-builtin)
-status=$(status "setupmode")
-if [[ $status -eq 1 ]]; then
-    echo "Keys enrolled successfully!"
-elif  
-
+if [[ $(progress) == 1 ]]; then
+    clear
+    if [[ $(setup_enabled) == 1 ]]; then
+        stage_0
+        exit 1
+    fi
+    stage_1
 fi
 
-
-
-if [[ "$enroll" == *"Enrolled keys to the EFI variables!"* ]] || [[ "$enroll" == *"Your system is not in Setup Mode!"*]]; then
-    echo "Keys enrolled successfully!"
-
-
-
-else
-    echo "Unexpected sbctl enroll-keys output:"
-    echo "$enroll"
-    exit 1
+if [[ $(progress) == 2 ]]; then
+    if [[ $(setup_enabled) == 1 ]]; then
+        stage_0
+        exit 1
+    fi
+    stage_2
 fi
 
-echo "Checking for Keys status..."
-status=$(is_enabled "keys")
-if [["$status" == 0]]; then
-    echo "Keys enrolled successfully!"
-else
-    echo "Unexpected sbctl status:"
-    echo "$status"
-    exit 1
+if [[ $(progress) == 3 ]]; then
+    stage_3
 fi
 
-echo "Checking if Setup Mode is disabled..."
-status=$(is_enabled "setupmode")
-if [[ "$status" -eq 1 ]]; then
-    echo "Setup mode is disabled!"
-else
-    echo "Unexpected sbctl status:"
-    echo "$status"
-    exit 1
-fi
+exit 0
+
 
 echo "Searching for wallpaper path in limine.conf..."
 ENABLE_ENROLL_LIMINE_CONFIG=yes >> /etc/default/limine
