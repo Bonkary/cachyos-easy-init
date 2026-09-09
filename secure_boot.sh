@@ -3,7 +3,7 @@ is_enabled() {
     local status=$(sudo sbctl status)
     
     local ENABLED_SETUP="Setup Mode:     ✗ Enabled"
-    local DISABLED_SETUP="Setup Mode:     ✓ Disabled" # OK?
+    local DISABLED_POST_SETUP="Setup Mode:     ✓ Disabled" #
 
     local ENABLED_SECUREBOOT="Secure Boot:    ✓ Enabled"
     local DISABLED_SECUREBOOT="Secure Boot:    ✗ Disabled"
@@ -12,8 +12,12 @@ is_enabled() {
     local DISABLED_KEYS="Vendor Keys:    none"
 
     if [[ "$checking" == "setupmode" ]]; then
-        if [[ "$status" == *"$ENABLED_SETUP"* ]]; then
+        if [[ "$status" == *"$ENABLED_SETUP"* ]] || [[ "$status" == *"$DISABLED_POST_SETUP"* ]]; then
             echo 0
+
+        elif [[ "$status" == *"$DISABLED_POST_SETUP"* ]]; then
+            echo 1
+
         else
             echo "Setup mode is not enabled!"
         fi
@@ -111,8 +115,8 @@ PROGRESS_FILE="./progress/secure_boot.log"
 #  9: fwupd allowed
 # 10: Done
 
-if [[ ! -d "./tmp" ]]; then
-    mkdir -p ./tmp
+if [[ ! -d "./progress" ]]; then
+    mkdir -p ./progress
 fi
 
 if [[ ! -f "$PROGRESS_FILE" ]]; then
@@ -156,6 +160,7 @@ if [[ $(progress) -ne 5 ]]; then
     fi
 fi
 
+# Test in VM
 echo "Checking for keys..."
 if [[ $(sudo sbctl status) == *"Vendor Keys:"* ]] && [[ ! $(sudo sbctl status) == *"none"* ]]; then
     echo "No keys found!\nCreating keys..."
@@ -172,10 +177,23 @@ else
     exit 1
 fi
 
+
 echo "Enrolling keys..."
 enroll=$(sudo sbctl enroll-keys --microsoft --firmware-builtin)
-if [["$enroll" == *"Enrolled keys to the EFI variables!"* ]]; then
+status=$(status "setupmode")
+if [[ $status -eq 1 ]]; then
     echo "Keys enrolled successfully!"
+elif  
+
+fi
+
+
+
+if [[ "$enroll" == *"Enrolled keys to the EFI variables!"* ]] || [[ "$enroll" == *"Your system is not in Setup Mode!"*]]; then
+    echo "Keys enrolled successfully!"
+
+
+
 else
     echo "Unexpected sbctl enroll-keys output:"
     echo "$enroll"
