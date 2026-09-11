@@ -119,7 +119,7 @@ blake2b_hash() {
     local path=$1
     local hash
     hash=$(sudo b2sum "/boot/${path}")
-    if [[ ! ${#hash} == 64 ]]; then
+    if [[ ! ${#hash} == 128 ]]; then
         echo "Error generating BLAKE2B hash for the splash image"
         exit 1
     fi
@@ -210,9 +210,6 @@ if [[ ! -f $PROGRESS_FILE ]]; then
     touch $PROGRESS_FILE
     echo 0 > $PROGRESS_FILE
 fi
-
-write_wallpaper_hash "limine-splash.png"
-exit 0
 
 ##################################
 ##      Enable Setup Mode       ##
