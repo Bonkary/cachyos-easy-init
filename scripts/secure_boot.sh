@@ -2,30 +2,44 @@
 
 PROGRESS_FILE="./tmp/secure_boot.log"
 
-status() {
+print_err() {
+    printf '\e[31m%s\e[0m' "$1"
+}
+
+installpkg() {
+    local pkg=$1
+    echo sudo pacman -Sy "$pkg" --noconfirm --nodeps
+}
+
+state() {
     local checking="$1"
     
     local ENABLED_SETUP="Setup Mode:     ✗ Enabled"
     local DISABLED_SETUP="Setup Mode:     ✗ Disabled"
-    local COMPLETE_SETUP="Setup Mode:     ✓ Disabled"
+    local COMPLETE_SETUP="Setup Mode:     ✓ Disabled "
 
     local ENABLED_SECUREBOOT="Secure Boot:    ✓ Enabled"
-    # local DISABLED_SECUREBOOT="Secure Boot:    ✗ Disabled"
 
-    local ENABLED_KEYS="Vendor Keys:    microsoft"
-    # local DISABLED_KEYS="Vendor Keys:    none"
+    status=$(sudo sbctl status)
+    if [[ -z $status ]]; then
+        print_err "Failed getting sbctl status :("
+        exit 1
+    fi
 
-    status=$(sudo sbctl status &>/dev/null)
-    echo "$1"
     if [[ "$checking" == "setupmode" ]]; then
         if [[ "$status" == *"$ENABLED_SETUP"* ]]; then
             echo "enabled"
 
-        elif [[ "$status" == *"$COMPLETE_SETUP"* ]]; then
-            echo "complete"
-
         elif [[ "$status" == *"$DISABLED_SETUP"* ]]; then
             echo "disabled"
+
+        elif [[ "$status" == *"microsoft"* ]]; then
+            echo "complete"
+        
+        else
+            echo "$status"
+            print_err "failed to get setup mode"
+
         fi
         
     elif [[ "$checking" == "secureboot" ]]; then
@@ -36,7 +50,7 @@ status() {
         fi
         
     elif [[ "$checking" == "keys" ]]; then
-        if [[ "$status" == *"$ENABLED_KEYS"* ]]; then
+        if [[ "$status" == *"microsoft"* ]]; then
             echo "enrolled"
         
         elif [[ "$status" == *"Owner GUID"* ]]; then
@@ -56,15 +70,6 @@ stage() {
     cat $PROGRESS_FILE 2>/dev/null
 }
 
-print_err() {
-    printf '\e[31m%s\e[0m' "$1"
-}
-
-installpkg() {
-    local pkg=$1
-    echo sudo pacman -Sy "$pkg" --noconfirm --nodeps
-}
-
 is_installed() {
     local pkg=$1
     sudo pacman -Q "$pkg" &>/dev/null
@@ -75,7 +80,7 @@ is_installed() {
 #############################
 
 setup_enabled() {
-    status=$(status "setupmode")
+    status=$(state "setupmode")
     echo "Checking if Setup Mode is enabled..."
     if [[ "$status" == "complete" ]] || [[ "$status" == "enabled" ]]; then
         return 0
@@ -90,7 +95,7 @@ create_keys() {
     if [[ "$create" == *"Secure boot keys created!"* ]]; then
         echo "Keys created successfully!"
     else
-        echo "$create"
+        echo "$create""$setup"
         exit 1
     fi
 }
@@ -101,7 +106,7 @@ enroll_keys() {
         exit 1
     fi
 
-    status=$(status "setupmode")
+    status=$(state "setupmode")
     if [[ "$status" == "complete" ]]; then
         echo "Keys enrolled successfully!"
     else
@@ -112,7 +117,8 @@ enroll_keys() {
 
 blake2b_hash() {
     local path=$1
-    hash=$(sudo b2sum "/boot/${path}" 2>/dev/null)
+    local hash
+    hash=$(sudo b2sum "/boot/${path}")
     if [[ ! ${#hash} == 64 ]]; then
         echo "Error generating BLAKE2B hash for the splash image"
         exit 1
@@ -121,16 +127,17 @@ blake2b_hash() {
     
 }
 
+# TODO: fix this lol
 write_wallpaper_hash() {
     local path=$1
-    echo "Adding the hash to wallpaper path in limine.conf..."
+    echo "Changing the wallpaper file in limine.conf..."
     hash=$(blake2b_hash "$path")
     hashPath="${path}#${hash}"
-    if ! sudo sed -i "s|wallpaper: boot():/.*|${hashPath}|" /boot/limine.conf; then
-        printf "Error updating limine.conf with the new wallpaper path"
+    if sudo sed -i "s|wallpaper: boot():/.*|${hashPath}|" /etc/default/limine.conf; then
+        print_err "Error updating limine.conf with the new wallpaper path"
         exit 1
     else
-        echo "Written successfully"
+        echo "Done"
     fi 
 }
 
@@ -148,10 +155,9 @@ enable_secure_boot_reboot() {
 }
 
 enable_setup_mode_reboot() {
-    clear
-    product=$(sudo dmidecode -t 2 | grep "Product Name:"  &>/dev/null)
+    product=$(sudo dmidecode -t 2 | grep "Product Name:"  2>/dev/null)
     model="${product#*Product Name:}"
-
+    clear
     printf "\nEnter the BIOS to:\n"
     printf "  1. Put Secure Boot into Setup Mode\n"
     printf "  2. Set to the default keys.\n"
@@ -187,7 +193,7 @@ enable_setup_mode_reboot() {
 ##     Check if completed already     ##
 ########################################
 
-if [[ $(status "secureboot") == "enabled" ]]; then
+if [[ $(state "secureboot") == "enabled" ]]; then
     echo "Secure boot is already enabled!"
     exit 1
 fi
@@ -205,6 +211,8 @@ if [[ ! -f $PROGRESS_FILE ]]; then
     echo 0 > $PROGRESS_FILE
 fi
 
+write_wallpaper_hash "limine-splash.png"
+exit 0
 
 ##################################
 ##      Enable Setup Mode       ##
@@ -223,9 +231,8 @@ if [[ $(stage) == 0 ]]; then
     fi
     
     enable_setup_mode_reboot
-    printf 1 > $PROGRESS_FILE
-    # systemctl reboot --firmware-setup
-    exit 0
+    echo 1 > $PROGRESS_FILE
+    systemctl reboot --firmware-setup
 fi
 
 ##################################
@@ -245,36 +252,61 @@ if [[ $(stage) == 1 ]]; then
         clear
     fi
 
-    if [[ $(status keys) == 'none' ]]; then
+    if [[ $(state keys) == 'none' ]]; then
         echo "Creating keys..."
         create_keys
     fi
 
-    if [[ ! $(status keys) == 'enrolled' ]]; then
+    keyStatus=$(state "keys")
+    if [[ "$keyStatus" != "enrolled" ]]; then
         echo "Enrolling keys..."
         enroll_keys
     fi
 
     echo "Checking if Setup Mode is complete..."
-    setup=$(status "setupmode")
+    setup=$(state "setupmode")
     if [[ "$setup" == "complete" ]]; then
         echo "Setup mode is done!"
-        echo 2 > "$PROGRESS_FILE"
     else
-        print_err "$setup"
+        echo "$setup"
         exit 1
     fi
     echo 2 > $PROGRESS_FILE
 fi
 
-##################################
-##  Enroll config and binaries  ##
-##################################
+#######################################
+##  Enroll config, binaries, splash  ##
+#######################################
 
 if [[ $(stage) == 2 ]]; then
-    mode=$(status "setupmode")
+    mode=$(state "setupmode")
     if [[ ! "$mode" == "complete" ]]; then
         print_err "Setup Mode should be completed by now..."
+        exit 1
+    fi
+
+    echo "Searching for wallpaper path in limine.conf..."
+    wallpaper=$(sudo cat /boot/limine.conf | grep "wallpaper: boot():/")
+    if [[ "$wallpaper" == *"boot():/"* ]] && [[ ! "$wallpaper" == *"#"* ]]; then
+        path=${wallpaper#*boot():/}
+        write_wallpaper_hash "$path"
+
+    elif [[ "$wallpaper" == *"boot():/"* ]] && [[ "$wallpaper" == *"#"* ]]; then
+        echo "Wallpaper already hashed. Rehashing just in case."
+        write_wallpaper_hash "$path"
+
+    elif [[ -z "$wallpaper" ]]; then
+        echo "No wallpaper found in limine.conf... Skipping"
+
+    else
+        echo "Unexpected wallpaper path in limine.conf: $wallpaper"
+        exit 1
+    fi
+
+    
+    hashPath="${path}#$(blake2b_hash)"
+    if ! sudo sed -i "s|wallpaper: boot():/.*|${hashPath}|" /boot/limine.conf; then
+        echo "Error updating limine.conf with the new wallpaper path"
         exit 1
     fi
 
@@ -293,13 +325,13 @@ fi
 
 if [[ $(stage) == 3 ]]; then
     echo "Checking if Secure Boot is enabled..."
-    status=$(status "secureboot")
+    status=$(state "secureboot")
     if [[ "$status" == "enabled" ]]; then
         echo "Secure Boot is enabled!"
     else
         enable_secure_boot_reboot
         # systemctl reboot --firmware-setup
-        exit 0 # DEV
+        exit 0
     fi 
 
     # Allowing for fwupd to work with Secure Boot by signing the fwupdx64.efi binary and updating the fwupd configuration.
