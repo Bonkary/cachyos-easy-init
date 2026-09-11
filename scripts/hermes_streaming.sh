@@ -96,6 +96,7 @@ prepare_virt_disp() {
 install_deps() {
     qinstall wl-clipboard
     qinstall xclip
+    qinstall kwin
     
     # qinstall cuda
     qinstall libva-mesa-driver

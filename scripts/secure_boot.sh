@@ -67,12 +67,14 @@ setup_enabled() {
 }
 
 blake2b_hash() {
-    echo "Generating BLAKE2B hash for the splash image..."
-    hash=$(sudo b2sum /boot/${path})
-    if [[ ${#hash} -ne 64 ]]; then
+    local path=$1
+    hash=$(sudo b2sum "/boot/${path}" 2>/dev/null)
+    if [[ ! ${#hash} == 64 ]]; then
         echo "Error generating BLAKE2B hash for the splash image"
         exit 1
     fi
+    echo "$hash"
+    
 }
 
 
@@ -110,21 +112,30 @@ create_keys() {
 write_wallpaper_hash() {
     echo "Searching for wallpaper path in limine.conf..."
     wallpaper=$(sudo cat /boot/limine.conf | grep "wallpaper: boot():/")
-    if [[ "$wallpaper" == *"boot():/"* ]]; then
+    if [[ "$wallpaper" == *"boot():/"* ]] && [[ ! "$wallpaper" == *"#"* ]]; then
         path=${wallpaper#*boot():/}
         echo "Wallpaper found: ${path}"
+
+    elif [[ "$wallpaper" == *"boot():/"* ]] && [[ "$wallpaper" == *"#"* ]]; then
+        echo "Wallpaper already hashed. Rehashing just in case."
+
     elif [[ -z "$wallpaper" ]]; then
         echo "No wallpaper found in limine.conf"
         exit 1
+
     else
         echo "Unexpected wallpaper path in limine.conf: $wallpaper"
         exit 1
     fi
 
+    printf "\nGenerating BLAKE2B hash for the wallpaper..."
+    hash=$(blake2b_hash "$path")
+    if [[ $? == 1 ]]; then
+        exit 1
+    fi
+
     echo "Adding the hash to wallpaper path in limine.conf..."
     hashPath="${path}#$(blake2b_hash)"
-    echo "$hashPath"
-
     if ! sudo sed -i "s|wallpaper: boot():/.*|${hashPath}|" /boot/limine.conf; then
         echo "Error updating limine.conf with the new wallpaper path"
         exit 1
@@ -178,6 +189,7 @@ stage_0() {
     read -r -p "Press Enter to reboot the computer directly into the BIOS..."
     printf "1" > "$PROGRESS_FILE"
     # systemctl reboot --firmware-setup
+    exit 0
 }
 
 stage_1() {
@@ -188,7 +200,7 @@ stage_1() {
         read -r -p "Press Enter when you're ready..."
     fi
 
-    if [[ $(setup_enabled) -eq 1 ]]; then
+    if [[ ! $(setup_enabled) == 1 ]]; then
         stage_0
     fi
 
@@ -210,8 +222,10 @@ stage_1() {
 }
 
 stage_2() {
-    "ENABLE_ENROLL_LIMINE_CONFIG=yes" | sudo tee -a /etc/default/limine
-    
+    if [[ ! "$(cat /etc/default/limine)" == *"ENABLE_ENROLL_LIMINE_CONFIG=yes"* ]]; then
+        "ENABLE_ENROLL_LIMINE_CONFIG=yes" | sudo tee -a /etc/default/limine
+    fi
+
     write_wallpaper_hash
 
     echo "Enrolling the config checksum and signing Limine's EFI binary..."
@@ -273,7 +287,6 @@ if [[ $(stage) == 1 ]]; then
     clear
     if [[ $(setup_enabled) == 1 ]]; then
         stage_0
-        exit 1
     fi
     stage_1
 fi
