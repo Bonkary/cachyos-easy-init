@@ -1,6 +1,3 @@
-tmp/
 .vscode/
-progress.*
-
-
-
+linux-sbctl/
+sbctl/
