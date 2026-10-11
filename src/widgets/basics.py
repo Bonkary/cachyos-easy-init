@@ -25,6 +25,13 @@ class BasicHBoxLayout(QHBoxLayout):
         self.setContentsMargins(0,0,0,0)
         self.setSpacing(0)
 
+class BasicStackedLayout(QStackedLayout):
+    def __init__(self):
+        super().__init__()
+        
+        self.setContentsMargins(0,0,0,0)
+        self.setSpacing(0)
+        
 class BasicLabel(QLabel):
     def __init__(self, text: str, *,
                  font: QFont | None = None):
@@ -57,11 +64,14 @@ class BasicPushButton(QPushButton):
         
 class BasicTextEdit(QTextEdit):
     def __init__(self, *,
-                 read_only: bool = False):
+                 read_only: bool = False,
+                 font: QFont | None = None):
         super().__init__(parent=None)
         
         if read_only:
             self.setReadOnly(True)
+        if font:
+            self.setFont(font)
 
 class BasicLineEdit(QLineEdit):
     def __init__(self, *,
@@ -72,15 +82,19 @@ class BasicLineEdit(QLineEdit):
             self.setFont(font)
         if width:
             self.setFixedWidth(width)
-        
-        
+           
 class BasicMessageBox(QDialog):
     @dataclass
     class ExitCodes:
         UserClosed = 0
         Success = 1
         Failed = 2
-        
+        Yes = 3
+        No = 4
+    
+    @dataclass
+    class Cache:
+        Input = None
     def __init__(self, parent,
                  text: str | None = None,
                  *, 
@@ -88,7 +102,7 @@ class BasicMessageBox(QDialog):
                  is_input: bool = False,
                  hide_input: bool = False,
                  font: QFont | None = None,
-                 confirm: bool = False):
+                 is_confirm: bool = False):
         super().__init__(parent)
         
         self.setFixedSize(cnsts.Gui.sizes.MessageBoxSize)
@@ -99,6 +113,15 @@ class BasicMessageBox(QDialog):
             self.inputBox.setEchoMode(QLineEdit.EchoMode.Password)
         doneButton = BasicPushButton("Done", width=100)
         
+        yesButton = BasicPushButton("Yes")
+        noButton = BasicPushButton("No")
+        yesNoLayout = BasicHBoxLayout()
+        yesNoLayout.addStretch()
+        yesNoLayout.addWidget(noButton)
+        yesNoLayout.addSpacing(10)
+        yesNoLayout.addWidget(yesButton)
+        yesNoLayout.addStretch()
+        
         mainLayout = BasicVBoxLayout()
         mainLayout.addSpacing(10)
         mainLayout.addWidget(self.label, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -108,11 +131,18 @@ class BasicMessageBox(QDialog):
             mainLayout.addSpacing(10)
             mainLayout.addWidget(doneButton, alignment=Qt.AlignmentFlag.AlignCenter)
         
+        if is_confirm:
+            mainLayout.addSpacing(20)
+            mainLayout.addLayout(yesNoLayout)
+        
         self.setLayout(mainLayout)
         
-        doneButton.clicked.connect(lambda: self.done(self.ExitCodes.Success))
-        
+        doneButton.clicked.connect(self.getInput)
+        yesButton.clicked.connect(lambda: self.done(self.ExitCodes.Yes))
+        noButton.clicked.connect(lambda: self.done(self.ExitCodes.No))
+    
     def getInput(self) -> str:
-        return self.inputBox.text()
+        BasicMessageBox.Cache.Input = self.inputBox.text()
+        self.done(BasicMessageBox.ExitCodes.Success)
         
         

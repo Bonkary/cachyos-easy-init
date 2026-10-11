@@ -19,10 +19,10 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication([])
-    app.setFont(cnsts.Gui.Fonts.default)
+    app.setFont(cnsts.Gui.Fonts.Default)
 
     window = MainWindow()
     window.show()
     
-    QtAsyncio.run(handle_sigint=True)
+    sys.exit(app.exec())
     
