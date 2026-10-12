@@ -9,6 +9,7 @@ from widgets.selections import Selections
 from widgets.secure_boot import SecureBoot
 import linux_sbctl.pyside as sbctl
 import os
+import subprocess
 
 class EasyInit(QWidget):
     def __init__(self):
@@ -23,7 +24,7 @@ class EasyInit(QWidget):
         
         if os.path.exists("/tmp/easy-init-secure-boot"):
             mainStack.setCurrentWidget(self.secureBoot)
-        
+
 
         self.setLayout(mainStack)
 
