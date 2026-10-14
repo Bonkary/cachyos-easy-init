@@ -1,4 +1,4 @@
-# Setup Mode
+## Setup Mode
 <u>**Important**</u>: We are <u>**NOT**</u> enabling `Secure Boot` yet. You won't be able to boot to CachyOS.
 
 The first step (not including Windows) is to enable `Setup Mode` in the BIOS.
