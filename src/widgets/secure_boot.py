@@ -45,8 +45,10 @@ class SecureBoot(QWidget):
                 self.label.setText("Failed to install sbctl.")
             else:
                 self.label.setText("sbctl installed!")
+                self.next_stage()
         else:
             self.label.setText("sbctl is already installed. Nice.")
+            self.next_stage()
 
         self.nextButton.show()
         
@@ -90,7 +92,7 @@ class SecureBoot(QWidget):
                 self.label.setText("Take a look at the terminal you booted me from. Maybe resize if need be.\n\nTake a picture probably or something.")
                 QApplication.processEvents()
                 QTimer.singleShot(5000, lambda: sys.exit(0))
-                subprocess.run(['./secure_boot_msg.sh'])
+                # subprocess.run(['./secure_boot_msg.sh'])
             case 2:
                 pass
             case 3:

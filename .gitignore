@@ -1,3 +1,4 @@
 .vscode/
 linux-sbctl/
 sbctl/
+__pycache__/
