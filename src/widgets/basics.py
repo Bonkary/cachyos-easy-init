@@ -1,13 +1,15 @@
 from PySide6.QtWidgets import (
     QLabel, QPushButton, QLineEdit,
     QVBoxLayout, QHBoxLayout, QStackedLayout,
-    QTextEdit, QDialog
+    QTextEdit, QDialog, QTextBrowser
 )
 from PySide6.QtGui import QPixmap, QFont
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QUrl
 import numpy as np
 import constants as cnsts
 from dataclasses import dataclass
+from pathlib import Path
+import markdown
 
 class BasicVBoxLayout(QVBoxLayout):
     def __init__(self):
@@ -105,7 +107,7 @@ class BasicMessageBox(QDialog):
                  is_confirm: bool = False):
         super().__init__(parent)
         
-        self.setFixedSize(cnsts.Gui.sizes.MessageBoxSize)
+        self.setFixedSize(cnsts.Gui.Sizes.MessageBoxSize)
         
         self.label = BasicLabel(text, font=font)
         self.inputBox = BasicLineEdit(width=200)
@@ -145,4 +147,29 @@ class BasicMessageBox(QDialog):
         BasicMessageBox.Cache.Input = self.inputBox.text()
         self.done(BasicMessageBox.ExitCodes.Success)
         
+class BasicMarkdown(QTextBrowser):
+    def __init__(self, parent=None,
+                 *,
+                 size: QSize | None = None,
+                 file: Path | None = None,
+                 ext_links: bool = True):
+        super().__init__(parent)
         
+        self.setOpenExternalLinks(ext_links)
+        self.setLineWrapMode(QTextBrowser.LineWrapMode.WidgetWidth)
+        self.setFont(cnsts.Gui.Fonts.MessageBox)
+        self.setFixedSize(size if size else cnsts.Gui.Sizes.AppSize)
+        
+        if size:
+            self.resize(size)
+        
+        if file:
+            html = markdown.markdown(file.read_text(encoding=('utf-8')),
+                                     extensions=["extra", "sane_lists", "nl2br"])
+            self.setHtml(html)
+            
+            
+            
+            
+            
+            

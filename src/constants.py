@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QFont
+from pathlib import Path
+import os
 
 def _create_font(family: str = 'Arial', point_size: int = 16,
                  bold: bool = False, underline: bool = False):
@@ -15,8 +17,8 @@ def _create_font(family: str = 'Arial', point_size: int = 16,
 @dataclass
 class Gui:    
     @dataclass
-    class sizes:
-        AppSize = QSize(800,600)
+    class Sizes:
+        AppSize = QSize(1300,800)
         MessageBoxSize = QSize(600,200)
         
     @dataclass
@@ -25,23 +27,17 @@ class Gui:
         MessageBox = _create_font(point_size=14)
         Terminal = _create_font(point_size=11)
         
-    @dataclass
-    class Dialog:
-        @dataclass
-        class SecureBoot:
-            Start = "\n".join([
-                "Welcome. Let's get Secure Boot going.\n\n\n",
-                "First, let's check if 'sbctl' is installed.\n",
-                "This package is what's going to manage the keys.\n"
-            ])
-            
-            Install = "Please dont touch me or my son. He's terminal."
-            
-            RebootForSetupMode = "\n\n".join([
-                "Okay, I'd take a picture of this or something if you're nervous.\n\n",
-                "Take a look at the terminal underneath me. (Or wherever it is)"
-            ])
-
 @dataclass
 class Files:
-    SecureBootTmp = '/tmp/easy-init-secure-boot'
+    @dataclass
+    class Tmp:
+        SecureBoot = Path(os.path.join('/tmp', 'init-secure-boot'))
+    
+    @dataclass
+    class Markdown:
+        @dataclass
+        class SecureBoot:
+            _Base = Path(os.path.join(Path(__file__).parent, "dialog", 'secureboot'))
+            Start = Path(os.path.join(_Base, 'start.md'))
+            Windows = Path(os.path.join(_Base, 'windows.md'))
+            SetupMode = Path(os.path.join(_Base, 'setupmode.md'))

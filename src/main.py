@@ -12,7 +12,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__(parent=None)
 
-        self.setFixedSize(cnsts.Gui.sizes.AppSize)
+        self.setFixedSize(cnsts.Gui.Sizes.AppSize)
         easyInit = EasyInit()
         
         self.setCentralWidget(easyInit)
@@ -22,6 +22,7 @@ if __name__ == "__main__":
     app.setFont(cnsts.Gui.Fonts.Default)
 
     window = MainWindow()
+    window.setStyleSheet("background-color: #2b6868;")
     window.show()
     
     sys.exit(app.exec())
