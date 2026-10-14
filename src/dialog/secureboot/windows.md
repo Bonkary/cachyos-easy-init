@@ -1,7 +1,8 @@
 # Windows
-With Windows installed, it's a couple extra steps if not done already.
+With Windows installed, it's a couple extra steps if not done already. We need to get the Microsoft Keys installed to the BIOS.<br><br>
 Read ahead, and if you've done this already, then you can click "Already Done".
 
+#### Windows Secure Boot
 1. Go to BIOS (`Reboot` button will take you there).
 2. Enable `Advanced Mode` if not already in it (it'll tell you the button somewhere).
 3. Go to `Boot` &rarr; `Secure Boot` &rarr; `Enabled`
