@@ -1,4 +1,4 @@
-# Windows
+## Windows
 With Windows installed, it's a couple extra steps if not done already. We need to get the Microsoft Keys installed to the BIOS.<br><br>
 Read ahead, and if you've done this already, then you can click "Already Done".
 
