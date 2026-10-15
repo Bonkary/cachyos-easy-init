@@ -152,7 +152,8 @@ class BasicMarkdown(QTextBrowser):
                  *,
                  size: QSize | None = None,
                  file: Path | None = None,
-                 ext_links: bool = True):
+                 ext_links: bool = True,
+                 spacing: int | None = None):
         super().__init__(parent)
         
         self.setOpenExternalLinks(ext_links)
@@ -167,6 +168,8 @@ class BasicMarkdown(QTextBrowser):
             html = markdown.markdown(file.read_text(encoding=('utf-8')),
                                      extensions=["extra", "sane_lists", "nl2br"])
             self.setHtml(html)
+            
+        
             
             
             

@@ -2,3 +2,4 @@
 linux-sbctl/
 sbctl/
 __pycache__/
+*.code-workspace

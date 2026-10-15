@@ -17,7 +17,7 @@ class EasyInit(QWidget):
         
         self.selections = Selections()
         self.secureBoot = SecureBoot()
-
+        
         mainStack = BasicStackedLayout()
         mainStack.addWidget(self.selections)
         mainStack.addWidget(self.secureBoot)
