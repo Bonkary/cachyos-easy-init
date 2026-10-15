@@ -60,7 +60,6 @@ def download() -> bool:
             print("Downloading Hermes...")
             hermesRepo = git.Repo.clone_from(HERMES_URL, HERMES_DIR,
                                              progress=ProgressPrinter())
-            print()
             if not os.path.exists(HERMES_DIR):
                 print("Failed to clone Hermes dir")
         else:
@@ -70,7 +69,6 @@ def download() -> bool:
             print("Downloading Hermes-KMS")
             hermesKmsRepo = git.Repo.clone_from(HERMES_KMS_URL, HERMES_KMS_DIR,
                                                 progress=ProgressPrinter())
-            print()
             if not os.path.exists(HERMES_KMS_DIR):
                 print("Failed to clone Hermes-KMS dir")
         else:
@@ -88,6 +86,9 @@ def install_kms(password: str) -> None:
     if not is_installed():
         if not os.path.exists(HERMES_HOME_DIR):
             os.makedirs(HERMES_HOME_DIR, exist_ok=True)
+        
+        if not download():
+            print("Failed to download files.")
         
         makeClean = subprocess.run(
             "make clean",
@@ -126,7 +127,7 @@ def install_kms(password: str) -> None:
             env["SUDO_ASKPASS"] = askpass
             env["PATH"] = helper_dir + os.pathsep + env.get("PATH", "")
             makepkg = subprocess.run(
-                "makepkg -si -f --noconfirm",
+                "makepkg -si --noconfirm",
                 shell=True,
                 cwd=HERMES_KMS_DIR,
                 env=env,
@@ -142,13 +143,26 @@ def install_kms(password: str) -> None:
         return True
     
 def is_installed() -> bool:
-    installed = False
-    lsmodOutput = cmd_line("lsmod | grep hermes_kms", capture=True)
-    if not lsmodOutput.stdout:
-        print("Failed to install KMS")
+    installed1 = False
+    installed2 = False
+    lsmodOutput = subprocess.run(
+        "lsmod | grep hermes_kms",
+        capture_output=True,
+        text=True,
+        timeout=60,
+        shell=True,
+    )
+    if 'hermes_kms' in lsmodOutput.stdout:
+        installed1 = True
     
-    lsOutput = cmd_line("ls /dev/dri/by-path/ | grep hermes")
-    if not lsOutput.stdout:
-        print("Failed to install KMS")
+    lsOutput = subprocess.run(
+        "ls /dev/dri/by-path/ | grep hermes",
+        capture_output=True,
+        text=True,
+        timeout=60,
+        shell=True,
+    )
+    if 'platform-hermes-kms-card' in lsOutput.stdout and 'platform-hermes-kms-render' in lsOutput.stdout:
+        installed2 = True
     
-    return installed
+    return installed1 and installed2
