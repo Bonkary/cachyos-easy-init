@@ -2,6 +2,9 @@ import subprocess
 import os
 import sys
 import git
+from getpass import getpass
+import stat
+import tempfile
 
 HERMES_HOME_DIR = os.path.join('/home', os.environ["USER"], '.hermes')
 HERMES_DIR = os.path.join(HERMES_HOME_DIR, 'Hermes')
@@ -29,18 +32,22 @@ class ProgressPrinter(git.RemoteProgress):
 def cmd_line(cmd: list[str] | str,
              capture: bool = True,
              input: str | None = None,
-             cwd: str | None = None) -> subprocess.CompletedProcess:
+             cwd: str | None = None,
+             env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     if type(cmd) == str:
         cmd = cmd.split(" ")
-
-    print(cmd)
-    result = subprocess.run(args=cmd,
-                            capture_output=capture,
-                            text=True,
-                            input=input,
-                            timeout=60,
-                            shell=True,
-                            cwd=cwd)
+    
+    result = subprocess.run(
+        cmd,
+        capture_output=capture,
+        text=True,
+        input=input,
+        timeout=60,
+        shell=True,
+        cwd=cwd,
+        env=env
+    )
+    
     return result
 
 def download() -> bool:
@@ -76,24 +83,63 @@ def download() -> bool:
     
     except Exception as err:
         print(err)
-    
-def install_kms() -> bool:
+
+def install_kms(password: str) -> None:
     if not is_installed():
-        cleanResult = cmd_line("make clean", cwd=HERMES_KMS_DIR)
-        if cleanResult.stderr:
-            print(f"Failed to make clean: {cleanResult.stderr}")
-            
-        makeResult = cmd_line("make", cwd=HERMES_KMS_DIR)
-        if makeResult.stderr:
-            print(f"Failed to make: {cleanResult.stderr}")
+        if not os.path.exists(HERMES_HOME_DIR):
+            os.makedirs(HERMES_HOME_DIR, exist_ok=True)
         
-        pswd = input("Password: ")
+        makeClean = subprocess.run(
+            "make clean",
+            capture_output=True,
+            text=True,
+            timeout=60,
+            shell=True,
+            cwd=HERMES_KMS_DIR,
+        )
+        if makeClean.stderr:
+            print(f"Failed to make clean: {makeClean.stderr}")
         
-        makepkgResult = cmd_line(f'makepkg -si --noconfirm', cwd=HERMES_KMS_DIR, input=pswd)
-        if not makepkgResult:
-            pass
+        make = subprocess.run(
+            "make",
+            capture_output=True,
+            text=True,
+            timeout=60,
+            shell=True,
+            cwd=HERMES_KMS_DIR,
+        )
+        if make.stderr:
+            print(f"Failed to make: {make.stderr}")
+        
+        with tempfile.TemporaryDirectory() as helper_dir:
+            askpass = os.path.join(helper_dir, "askpass")
+            sudo_wrapper = os.path.join(helper_dir, "sudo")
+            with open(askpass, "w") as helper:
+                helper.write('#!/bin/sh\nprintf "%s\\n" "$HERMES_SUDO_PASSWORD"\n')
+            with open(sudo_wrapper, "w") as helper:
+                helper.write('#!/bin/sh\nexec /usr/bin/sudo -A "$@"\n')
+            os.chmod(askpass, stat.S_IRWXU)
+            os.chmod(sudo_wrapper, stat.S_IRWXU)
+
+            env = os.environ.copy()
+            env["HERMES_SUDO_PASSWORD"] = password
+            env["SUDO_ASKPASS"] = askpass
+            env["PATH"] = helper_dir + os.pathsep + env.get("PATH", "")
+            makepkg = subprocess.run(
+                "makepkg -si -f --noconfirm",
+                shell=True,
+                cwd=HERMES_KMS_DIR,
+                env=env,
+            )
+        if makepkg.returncode == 0:
+            print("Time to reboot!")
+            return True
+        else:
+            print(f"Failed to makepkg (exit code {makepkg.returncode}).")
+            return False
     else:
         print("Hermes-KMS already installed.")
+        return True
     
 def is_installed() -> bool:
     installed = False
