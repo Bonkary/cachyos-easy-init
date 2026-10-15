@@ -16,30 +16,26 @@ class SecureBoot(QWidget):
         buttonWidth = 200
         
         self.markdownBox = BasicMarkdown(file=cnsts.Files.Markdown.SecureBoot.Start,
-                                         size=QSize(cnsts.Gui.Sizes.AppSize))
+                                         size=QSize(cnsts.Gui.Sizes.SecureBootSize))
         print(Path(__file__).parent)
         
-        # self.installButton = BasicPushButton("Install sbctl", width=buttonWidth)
         self.nextButton = BasicPushButton("Next", width=buttonWidth)
         
         mainLayout = BasicVBoxLayout()
         mainLayout.addSpacing(20)
         mainLayout.addWidget(self.markdownBox, alignment=Qt.AlignmentFlag.AlignCenter)
         mainLayout.addSpacing(50)
-        # mainLayout.addWidget(self.installButton, alignment=Qt.AlignmentFlag.AlignCenter)
         mainLayout.addWidget(self.nextButton, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        self.nextButton.hide()
         self.setLayout(mainLayout)
         
-        # self.installButton.clicked.connect(self.install)
         self.nextButton.clicked.connect(self.next_stage)
         
         self.next_stage()
             
     def install(self) -> None:
         self.ask_grub()
-        self.installButton.hide()
+        self.nextButton.hide()
         
         if not sbctl.is_installed():
             pswd = self.request_pswd(to_install="sbctl")
@@ -50,7 +46,6 @@ class SecureBoot(QWidget):
                 self.next_stage()
         else:
             self.next_stage()
-        self.nextButton.show()
         
     def request_pswd(self) -> bool:
         pswdPopup = BasicMessageBox(

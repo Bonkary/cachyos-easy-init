@@ -156,6 +156,7 @@ class BasicMarkdown(QTextBrowser):
                  spacing: int | None = None):
         super().__init__(parent)
         
+        self.setStyleSheet("QTextBrowser { border: none; }")
         self.setOpenExternalLinks(ext_links)
         self.setLineWrapMode(QTextBrowser.LineWrapMode.WidgetWidth)
         self.setFont(cnsts.Gui.Fonts.MessageBox)

@@ -20,6 +20,7 @@ class Gui:
     class Sizes:
         AppSize = QSize(1300,800)
         MessageBoxSize = QSize(600,200)
+        SecureBootSize = QSize(1000, 600)
         
     @dataclass
     class Fonts:

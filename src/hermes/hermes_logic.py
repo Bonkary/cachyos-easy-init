@@ -82,8 +82,8 @@ def download() -> bool:
     except Exception as err:
         print(err)
 
-def install_kms(password: str) -> None:
-    if not is_installed():
+def install_kms(password: str) -> bool:
+    if not is_kms_installed():
         if not os.path.exists(HERMES_HOME_DIR):
             os.makedirs(HERMES_HOME_DIR, exist_ok=True)
         
@@ -141,8 +141,8 @@ def install_kms(password: str) -> None:
     else:
         print("Hermes-KMS already installed.")
         return True
-    
-def is_installed() -> bool:
+   
+def is_kms_installed() -> bool:
     installed1 = False
     installed2 = False
     lsmodOutput = subprocess.run(
@@ -166,3 +166,9 @@ def is_installed() -> bool:
         installed2 = True
     
     return installed1 and installed2
+
+def install_hermes() -> None:
+    pass
+
+
+
