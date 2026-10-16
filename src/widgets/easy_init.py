@@ -21,10 +21,6 @@ class EasyInit(QWidget):
         mainStack = BasicStackedLayout()
         mainStack.addWidget(self.selections)
         mainStack.addWidget(self.secureBoot)
-        
-        if os.path.exists("/tmp/easy-init-secure-boot"):
-            mainStack.setCurrentWidget(self.secureBoot)
-
 
         self.setLayout(mainStack)
 

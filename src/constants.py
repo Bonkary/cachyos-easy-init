@@ -20,7 +20,8 @@ class Gui:
     class Sizes:
         AppSize = QSize(1300,800)
         MessageBoxSize = QSize(600,200)
-        SecureBootSize = QSize(1000, 600)
+        SecureBootSize = QSize(1200, 600)
+        Button = QSize(200,40)
         
     @dataclass
     class Fonts:
@@ -38,7 +39,10 @@ class Files:
     class Markdown:
         @dataclass
         class SecureBoot:
-            _Base = Path(os.path.join(Path(__file__).parent, "dialog", 'secureboot'))
-            Start = Path(os.path.join(_Base, 'start.md'))
-            Windows = Path(os.path.join(_Base, 'windows.md'))
-            SetupMode = Path(os.path.join(_Base, 'setupmode.md'))
+            _Root = Path(os.path.join(Path(__file__).parent, "dialog", 'secureboot'))
+            Start = Path(os.path.join(_Root, 'start.md'))
+            Windows = Path(os.path.join(_Root, 'windows.md'))
+            SetupMode = Path(os.path.join(_Root, 'setupmode.md'))
+            AsusSetup = Path(os.path.join(_Root, 'asus_setupmode.md'))
+            MsiSetup = Path(os.path.join(_Root, 'msi_setupmode.md'))
+            StandardSetup = Path(os.path.join(_Root, 'standard_setupmode.md'))

@@ -1,9 +1,10 @@
 from PySide6.QtWidgets import (
     QLabel, QPushButton, QLineEdit,
     QVBoxLayout, QHBoxLayout, QStackedLayout,
-    QTextEdit, QDialog, QTextBrowser
+    QTextEdit, QDialog, QTextBrowser,
+    QWidget
 )
-from PySide6.QtGui import QPixmap, QFont
+from PySide6.QtGui import QPixmap, QFont, QPalette, QColor
 from PySide6.QtCore import Qt, QSize, QUrl
 import numpy as np
 import constants as cnsts
@@ -30,17 +31,38 @@ class BasicHBoxLayout(QHBoxLayout):
 class BasicStackedLayout(QStackedLayout):
     def __init__(self):
         super().__init__()
-        
+
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setContentsMargins(0,0,0,0)
         self.setSpacing(0)
+
+
+class BasicWidget(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
         
+    def setBackgroundColor(self, color: str) -> None:
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+
 class BasicLabel(QLabel):
-    def __init__(self, text: str, *,
+    def __init__(self,
+                 text: str,
+                 *,
                  font: QFont | None = None):
         super().__init__(parent=None)
         
         if text:
             self.setText(text)
+            
+    def setBackgroundColor(self, color: str) -> None:
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+        
             
 class BasicPushButton(QPushButton):
     def __init__(self,
@@ -50,6 +72,7 @@ class BasicPushButton(QPushButton):
                  width: int | None = None,
                  height: int | None = None):
         super().__init__(parent=None)
+        self.setFixedSize(size if size else cnsts.Gui.Sizes.Button)
         
         if text:
             self.setText(text)
@@ -63,7 +86,13 @@ class BasicPushButton(QPushButton):
                 self.setFixedWidth(width)
             if height:
                 self.setFixedHeight(height)
-        
+    
+    def setBackgroundColor(self, color: str) -> None:
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+    
 class BasicTextEdit(QTextEdit):
     def __init__(self, *,
                  read_only: bool = False,
@@ -75,6 +104,12 @@ class BasicTextEdit(QTextEdit):
         if font:
             self.setFont(font)
 
+    def setBackgroundColor(self, color: str) -> None:
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+
 class BasicLineEdit(QLineEdit):
     def __init__(self, *,
                  font: QFont | None = None,
@@ -84,6 +119,12 @@ class BasicLineEdit(QLineEdit):
             self.setFont(font)
         if width:
             self.setFixedWidth(width)
+
+    def setBackgroundColor(self, color: str) -> None:
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
            
 class BasicMessageBox(QDialog):
     @dataclass
@@ -146,7 +187,13 @@ class BasicMessageBox(QDialog):
     def getInput(self) -> str:
         BasicMessageBox.Cache.Input = self.inputBox.text()
         self.done(BasicMessageBox.ExitCodes.Success)
-        
+    
+    def setBackgroundColor(self, color: str) -> None:
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+    
 class BasicMarkdown(QTextBrowser):
     def __init__(self, parent=None,
                  *,
@@ -166,10 +213,19 @@ class BasicMarkdown(QTextBrowser):
             self.resize(size)
         
         if file:
-            html = markdown.markdown(file.read_text(encoding=('utf-8')),
-                                     extensions=["extra", "sane_lists", "nl2br"])
-            self.setHtml(html)
-            
+            self.set(file)
+    
+    def setBackgroundColor(self, color: str) -> None:
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+        
+    def set(self, file: Path) -> None:
+        html = markdown.markdown(file.read_text(encoding=('utf-8')),
+                                 extensions=["extra", "sane_lists", "nl2br"])
+        self.setHtml(html)
+        
         
             
             

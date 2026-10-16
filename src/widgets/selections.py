@@ -15,9 +15,8 @@ class Selections(QWidget):
         
         self.label = BasicLabel("Select")
 
-        buttonWidth = 200
-        self.secureBoot = BasicPushButton("Setup Secure Boot", width=buttonWidth)
-        self.hermesStreaming = BasicPushButton("Hermes Streaming", width=buttonWidth)
+        self.secureBoot = BasicPushButton("Setup Secure Boot", size=cnsts.Gui.Sizes.Button)
+        self.hermesStreaming = BasicPushButton("Hermes Streaming", size=cnsts.Gui.Sizes.Button)
         
         buttonSpacing = 20
         buttonsLayout = BasicVBoxLayout()

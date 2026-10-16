@@ -8,10 +8,11 @@ On Linux, Secure Boot keys and signings are managed via a package called sbctl. 
 <br>
 
 #### <div><u>Steps</u></div>
-1. Installing sbctl
-2. Enabling Setup Mode
-3. Running some sbctl commands to enroll and sign the keys.
-4. Enabling Secure Boot.
+1. Installing 'sbctl'
+2. Enabling 'Setup Mode' in BIOS.
+3. Running some 'sbctl' commands to create and enroll the keys.
+4. Signing your kernel and boot manager.
+4. Enabling 'Secure Boot' in BIOS.
 <br>
 
-<div align="center">It's easy.</div>
+It's easy.

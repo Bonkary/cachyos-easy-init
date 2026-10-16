@@ -8,6 +8,9 @@ from widgets.basics import *
 import linux_sbctl.pyside as sbctl
 import os
 
+def create_required_dirs():
+    pass
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__(parent=None)
